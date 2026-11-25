@@ -1,3 +1,4 @@
 model_variant,device,test_accuracy_percent,correct,total,parameters,raw_state_dict_mib,batch1_latency_ms,macs_per_image,operations_per_image
 baseline,mps,98.44,3987,4050,11181642,42.69,3.55,1823526912,3647053824
-pruned_25pct,mps,97.01,3929,4050,6294202,24.04,3.04,1049730048,2099460096
+pruned_25pct,mps,97.31,3941,4050,6294202,24.04,2.97,1049730048,2099460096
+pruned_50pct,mps,96.10,3892,4050,2801450,10.71,2.23,487876608,975753216
