@@ -1,0 +1,2 @@
+device,test_accuracy_percent,correct,total,parameters,raw_state_dict_mib,batch1_latency_ms,macs_per_image,operations_per_image
+mps,98.44,3987,4050,11181642,42.69,3.55,1823526912,3647053824

@@ -1,8 +1,11 @@
+import csv
 import time
+from pathlib import Path
 
 import torch
+from thop import profile
 
-from load_eurosat_dense_checkpoint import DEVICE, model, test_loader
+from load_eurosat_dense_checkpoint import DEVICE, checkpoint, model, test_loader
 
 model.eval()
 
@@ -49,8 +52,50 @@ with torch.inference_mode():
 
     latency_ms = (time.perf_counter() - start) * 1000 / repetitions
 
+# MACs per image are hardware-independent; profile a CPU copy after timing MPS.
+image_size = checkpoint["dataset"]["image_size"]
+macs, _ = profile(
+    model.cpu(),
+    inputs=(torch.zeros(1, 3, image_size, image_size),),
+    verbose=False,
+)
+operations = 2 * macs  # Assignment convention: 1 MAC = 2 operations.
+
 print(f"Device: {DEVICE}")
 print(f"Test accuracy: {accuracy:.2f}% ({correct}/{total})")
 print(f"Parameters: {parameters:,}")
 print(f"Raw state-dict size: {weight_bytes / (1024 ** 2):.2f} MiB")
 print(f"Batch-size-one model latency: {latency_ms:.2f} ms")
+print(f"MACs per image: {macs:,.0f}")
+print(f"Operations per image: {operations:,.0f}")
+
+
+with Path("baseline_results.csv").open("w", newline="") as file:
+    writer = csv.DictWriter(
+        file,
+        fieldnames=[
+            "device",
+            "test_accuracy_percent",
+            "correct",
+            "total",
+            "parameters",
+            "raw_state_dict_mib",
+            "batch1_latency_ms",
+            "macs_per_image",
+            "operations_per_image",
+        ],
+    )
+    writer.writeheader()
+    writer.writerow({
+        "device": str(DEVICE),
+        "test_accuracy_percent": f"{accuracy:.2f}",
+        "correct": correct,
+        "total": total,
+        "parameters": parameters,
+        "raw_state_dict_mib": f"{weight_bytes / (1024 ** 2):.2f}",
+        "batch1_latency_ms": f"{latency_ms:.2f}",
+        "macs_per_image": int(macs),
+        "operations_per_image": int(operations),
+    })
+
+print("Saved baseline results to baseline_results.csv")
