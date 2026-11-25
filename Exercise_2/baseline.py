@@ -69,33 +69,46 @@ print(f"Batch-size-one model latency: {latency_ms:.2f} ms")
 print(f"MACs per image: {macs:,.0f}")
 print(f"Operations per image: {operations:,.0f}")
 
+results_path = Path("baseline_results.csv")
+fieldnames = [
+    "model_variant",
+    "device",
+    "test_accuracy_percent",
+    "correct",
+    "total",
+    "parameters",
+    "raw_state_dict_mib",
+    "batch1_latency_ms",
+    "macs_per_image",
+    "operations_per_image",
+]
+baseline_row = {
+    "model_variant": "baseline",
+    "device": str(DEVICE),
+    "test_accuracy_percent": f"{accuracy:.2f}",
+    "correct": correct,
+    "total": total,
+    "parameters": parameters,
+    "raw_state_dict_mib": f"{weight_bytes / (1024 ** 2):.2f}",
+    "batch1_latency_ms": f"{latency_ms:.2f}",
+    "macs_per_image": int(macs),
+    "operations_per_image": int(operations),
+}
 
-with Path("baseline_results.csv").open("w", newline="") as file:
-    writer = csv.DictWriter(
-        file,
-        fieldnames=[
-            "device",
-            "test_accuracy_percent",
-            "correct",
-            "total",
-            "parameters",
-            "raw_state_dict_mib",
-            "batch1_latency_ms",
-            "macs_per_image",
-            "operations_per_image",
-        ],
-    )
+# Replace the baseline row while preserving any compressed-model rows.
+other_rows = []
+if results_path.exists():
+    with results_path.open(newline="") as file:
+        for row in csv.DictReader(file):
+            variant = row.get("model_variant") or "baseline"
+            if variant != "baseline":
+                other_rows.append({
+                    field: row.get(field, "") for field in fieldnames
+                })
+
+with results_path.open("w", newline="") as file:
+    writer = csv.DictWriter(file, fieldnames=fieldnames)
     writer.writeheader()
-    writer.writerow({
-        "device": str(DEVICE),
-        "test_accuracy_percent": f"{accuracy:.2f}",
-        "correct": correct,
-        "total": total,
-        "parameters": parameters,
-        "raw_state_dict_mib": f"{weight_bytes / (1024 ** 2):.2f}",
-        "batch1_latency_ms": f"{latency_ms:.2f}",
-        "macs_per_image": int(macs),
-        "operations_per_image": int(operations),
-    })
+    writer.writerows([baseline_row, *other_rows])
 
-print("Saved baseline results to baseline_results.csv")
+print(f"Saved baseline row to {results_path}")
